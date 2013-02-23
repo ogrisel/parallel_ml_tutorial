@@ -65,7 +65,6 @@ folder:
     python fetch_data.py
 
 
-
 ## Using the IPython notebook to follow the tutorial
 
 The tutorial material and exercises are hosted in a set of IPython executable
@@ -73,8 +72,7 @@ notebook files.
 
 To run them interactively do:
 
-    $ cd notebooks
-    $ ipython notebook
+    $ ipython notebook --notebook-dir=notebooks
 
 This should automatically open a new browser window listing all the notebooks
 of the folder.

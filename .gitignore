@@ -2,3 +2,5 @@
 *.mmap
 joblib
 *.pyc
+*.pkl
+*.npy

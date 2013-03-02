@@ -4,3 +4,4 @@ joblib
 *.pyc
 *.pkl
 *.npy
+*.zip

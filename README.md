@@ -74,6 +74,11 @@ To run them interactively do:
 
     $ ipython notebook --notebook-dir=notebooks
 
+To run the same notebooks along with the solutions to the inline exercises,
+run instead:
+
+    $ ipython notebook --notebook-dir=solutions
+
 This should automatically open a new browser window listing all the notebooks
 of the folder.
 

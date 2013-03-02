@@ -5,12 +5,14 @@ from IPython.nbformat import current
  
  
 def remove_outputs(nb):
-    """remove the outputs from a notebook"""
+    """Remove the outputs from a notebook"""
+    i = 1
     for ws in nb.worksheets:
         for cell in ws.cells:
-
             if cell.cell_type == 'code':
                 cell.outputs = []
+                cell.prompt_number = i
+                i += 1
  
 if __name__ == '__main__':
     cmd = sys.argv[1]

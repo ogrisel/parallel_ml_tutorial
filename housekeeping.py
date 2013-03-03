@@ -6,27 +6,30 @@ from IPython.nbformat import current
  
 def remove_outputs(nb):
     """Remove the outputs from a notebook"""
-    i = 1
     for ws in nb.worksheets:
         for cell in ws.cells:
             if cell.cell_type == 'code':
                 cell.outputs = []
-                cell.prompt_number = i
-                i += 1
+                cell.prompt_number = None
  
 def remote_solutions(nb):
     for ws in nb.worksheets:
         inside_solution = False
         cells_to_remove = []
-        for cell in ws.cells:
+        for i, cell in enumerate(ws.cells):
             if cell.cell_type == 'heading':
                 inside_solution = False
             elif cell.cell_type == 'markdown':
                 first_line = cell.source.split("\n")[0].strip()
                 if first_line.lower() in ("**exercise:**", "**exercise**:"):
                     inside_solution = True
+                    # Insert a new code cell to work on the exercise
+                    ws.cells.insert(i + 1, current.new_code_cell())
                     continue
             if inside_solution:
+                if cell.cell_type == 'code' and not hasattr(cell, 'input'):
+                    # Leave blank code cells
+                    continue
                 cells_to_remove.append(cell)
         for cell in cells_to_remove:
             ws.cells.remove(cell)

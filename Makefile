@@ -11,3 +11,5 @@ clean-notebooks:
 	python housekeeping.py clean solutions
 
 clean: clean-pyc clean-data clean-notebooks
+
+pre-commit: clean-notebooks

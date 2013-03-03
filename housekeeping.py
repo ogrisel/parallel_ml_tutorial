@@ -12,7 +12,8 @@ def remove_outputs(nb):
         for cell in ws.cells:
             if cell.cell_type == 'code':
                 cell.outputs = []
-                cell.prompt_number = None
+                if cell.has_key('prompt_number'):
+                    del cell['prompt_number']
 
 
 def remote_solutions(nb):

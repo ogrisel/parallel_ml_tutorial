@@ -6,13 +6,14 @@ clean-data:
 	find . -name "*.npy" | xargs rm
 	find . -name "*.mmap" | xargs rm
 
-clean-solutions:
+strip:
+	# Strip output and prompt numbers in solutions
 	python housekeeping.py clean solutions
 
-generate-exercises:
+exercises:
 	python housekeeping.py exercises
 
 
 clean: clean-pyc clean-data clean-notebooks
 
-pre-commit: clean-solutions generate-exercises
+pre-commit: strip exercises

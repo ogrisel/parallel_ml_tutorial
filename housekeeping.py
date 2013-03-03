@@ -1,9 +1,11 @@
+"""Utility script to be used to cleanup the notebooks before git commit"""
+
 import sys
 import os
 import io
 from IPython.nbformat import current
- 
- 
+
+
 def remove_outputs(nb):
     """Remove the outputs from a notebook"""
     for ws in nb.worksheets:
@@ -11,8 +13,10 @@ def remove_outputs(nb):
             if cell.cell_type == 'code':
                 cell.outputs = []
                 cell.prompt_number = None
- 
+
+
 def remote_solutions(nb):
+    """Generate a version of the notebook with stripped exercises solutions"""
     for ws in nb.worksheets:
         inside_solution = False
         cells_to_remove = []
@@ -33,6 +37,7 @@ def remote_solutions(nb):
                 cells_to_remove.append(cell)
         for cell in cells_to_remove:
             ws.cells.remove(cell)
+
 
 if __name__ == '__main__':
     cmd = sys.argv[1]

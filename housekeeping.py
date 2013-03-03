@@ -1,5 +1,6 @@
 """Utility script to be used to cleanup the notebooks before git commit"""
 
+import shutil
 import sys
 import os
 import io
@@ -58,6 +59,13 @@ if __name__ == '__main__':
             with io.open(fname, 'wb') as f:
                 nb = current.write(nb, f, 'json')
     elif cmd == 'exercises':
+        # Copy the images from the solutions to the notebooks folder
+        solutions_images = os.path.join('solutions', 'images')
+        notebooks_images = os.path.join('notebooks', 'images')
+        if os.path.exists(notebooks_images):
+            shutil.rmtree(notebooks_images)
+        shutil.copytree(solutions_images, notebooks_images)
+
         # Generate the notebooks without the exercises solutions
         fnames = [f for f in os.listdir('solutions')
                   if f.endswith('.ipynb')]

@@ -72,12 +72,14 @@ notebook files.
 
 To run them interactively do:
 
-    $ ipython notebook --notebook-dir=notebooks
+    $ cd notebooks
+    $ ipython notebook
 
 To run the same notebooks along with the solutions to the inline exercises,
 run instead:
 
-    $ ipython notebook --notebook-dir=solutions
+    $ cd ipython solutions
+    $ ipython notebook
 
 This should automatically open a new browser window listing all the notebooks
 of the folder.
@@ -88,4 +90,3 @@ next cell. Go to the "Help" menu for links to the notebook tutorial.
 
 
 TODO: add links to online rendered versions as well
-

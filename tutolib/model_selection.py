@@ -1,17 +1,31 @@
 from collections import namedtuple
 from collections import defaultdict
+
+from IPython.parallel import interactive
 from scipy.stats import sem
+import numpy as np
+from sklearn.grid_search import IterGrid
+from sklearn.utils import check_random_state
 from sklearn.cross_validation import ShuffleSplit
 
+from tutolib.mmap import warm_mmap_on_cv_splits
 
-def compute_evaluation(model, cv_split_filename, params=None):
+
+@interactive
+def compute_evaluation(model, cv_split_filename, params=None,
+    train_fraction=1.0, mmap_mode='r'):
     """Function executed on a worker to evaluate a model on a given CV split"""
     # All module imports should be executed in the worker namespace
     from time import time
     from sklearn.externals import joblib
     
     X_train, y_train, X_test, y_test = joblib.load(
-        cv_split_filename, mmap_mode='c')
+        cv_split_filename, mmap_mode=mmap_mode)
+
+    # Slice a subset of the training set for plotting learning curves 
+    n_samples_train = int(train_fraction * X_train.shape[0])
+    X_train = X_train[:n_samples_train]
+    y_train = y_train[:n_samples_train]
 
     # Configure the model
     if model is not None:
@@ -30,161 +44,115 @@ def compute_evaluation(model, cv_split_filename, params=None):
 
     # Wrap evaluation results in a simple tuple datastructure
     return (test_score, train_score, train_time,
-            X_train.shape[0], cv_index, params)
+            train_fraction, params)
 
 
 # Named tuple to collect evaluation results
 Evaluation = namedtuple('Evaluation', (
-    'test_score',
+    'validation_score',
     'train_score',
     'train_time',
-    'train_size',
-    'cv_index',
+    'train_fraction',
     'parameters'))
 
 
-class LearningCurves(object):
-    """Handle async, distributed evaluation of a model learning curves"""
-    
-    def __init__(self, load_balancer):
-        self._scheduled_tasks = []
-        self._load_balancer = load_balancer
+class RandomizedGridSeach(object):
+    """"Async Randomized Parameter search."""
 
-    def evaluate(self, model, X, y, train_sizes=np.linspace(0.1, 0.8, 8),
-        test_size=0.2, n_iter=5):
-        """Schedule evaluation work in parallel and aggregate results for plotting"""
-        
-        n_samples, n_features = X.shape
-        self.n_samples = n_samples
-        
+    def __init__(self, load_balanced_view, random_state=0):
+        self.task_groups = []
+        self.lb_view = load_balanced_view
+        self.random_state = random_state
+
+    def map_tasks(self, f):
+        return [f(task) for task_group in self.task_groups
+                        for task in task_group]
+
+    def abort(self):
+        for task_group in self.task_groups:
+            for task in task_group:
+                if not task.ready():
+                    try:
+                        task.abort()
+                    except AssertionError:
+                        pass
+        return self
+
+    def wait(self):
+        self.map_tasks(lambda t: t.wait())
+        return self
+
+    def completed(self):
+        return sum(self.map_tasks(lambda t: t.ready()))
+
+    def total(self):
+        return sum(self.map_tasks(lambda t: 1))
+
+    def progress(self):
+        c = self.completed()
+        if c == 0:
+            return 0.0
+        else:
+            return float(c) / self.total()
+
+    def reset(self):
         # Abort any other previously scheduled tasks
-        for task in self._scheduled_tasks:
-            if not task.ready():
-                task.abort()
+        self.map_tasks(lambda t: t.abort())
 
         # Schedule a new batch of evalutation tasks
-        self._scheduled_tasks = []
-        for train_size in train_sizes:
-            cv = ShuffleSplit(n_samples, n_iter=n_iter, 
-                              train_size=train_size,
-                              test_size=test_size)
-            for cv_index, (train, test) in enumerate(cv):
-                task = self._load_balancer.apply_async(
-                    compute_evaluation,
-                    clf, X[train], y[train], X[test], y[test],
-                    cv_index)
-                
-                self._scheduled_tasks.append(task)
-        
+        self.task_groups, self.all_parameters = [], []
+
+    def launch_for_splits(self, model, parameter_grid, cv_split_filenames,
+        pre_warm=True):
+        """Launch a Grid Search on precomputed CV splits."""
+
+        # Abort any existing processing and erase previous state
+        self.reset()
+
+        # Warm the OS disk cache on each host with sequential reads
+        # XXX: fix me: interactive namespace issues to resolve
+        # if pre_warm:
+        #     warm_mmap_on_cv_splits(self.lb_view.client, cv_split_filenames)
+
+        # Randomize the grid order
+        random_state = check_random_state(self.random_state)
+        self.all_parameters = list(IterGrid(parameter_grid))
+        random_state.shuffle(self.all_parameters)
+
+        for params in self.all_parameters:
+            task_group = []
+            
+            for cv_split_filename in cv_split_filenames:
+                task = self.lb_view.apply(compute_evaluation,
+                    model, cv_split_filename, params=params)
+                task_group.append(task)
+
+            self.task_groups.append(task_group)
+
         # Make it possible to chain method calls
         return self
-                
-    def wait(self):
-        """Wait for completion"""
-        for task in self._scheduled_tasks:
-            task.wait()
+
+    def find_bests(self, n_top=5):
+        """Compute the mean score of the completed tasks"""
+        mean_scores = []
         
-        # Make it possible to chain method calls
-        return self
-    
-    def update_summary(self):
-        """Compute summary statistics for all finished tasks"""
-        evaluations = [Evaluation(*t.get())
-                       for t in self._scheduled_tasks if t.ready()]
-        grouped_evaluations = defaultdict(list)
-        for ev in evaluations:
-            # Group evaluations by effective training sizes
-            grouped_evaluations[ev.train_size].append(ev)
-        
-        self.train_sizes = []
-        self.train_scores, self.train_scores_stderr = [], []
-        self.test_scores, self.test_scores_stderr = [], []
-        self.train_times, self.train_times_stderr = [], []
-    
-        for size, group in sorted(grouped_evaluations.items()):
-            self.train_sizes.append(size)
-    
-            # Aggregate training scores data
-            train_scores = [ev.train_score for ev in group]
-            self.train_scores.append(np.mean(train_scores))
-            self.train_scores_stderr.append(sem(train_scores))
-    
-            # Aggregate testing scores data
-            test_scores = [ev.test_score for ev in group]
-            self.test_scores.append(np.mean(test_scores))
-            self.test_scores_stderr.append(sem(test_scores))
-            
-            # Aggregate training times data
-            train_times = [ev.train_time for ev in group]
-            self.train_times.append(np.mean(train_times))
-            self.train_times_stderr.append(sem(train_times))
-            
-        self.train_sizes = np.asarray(self.train_sizes)
-        self.train_scores = np.asarray(self.train_scores)
-        self.train_scores_stderr = np.asarray(self.train_scores_stderr)
-        self.test_scores = np.asarray(self.test_scores)
-        self.test_scores_stderr = np.asarray(self.test_scores_stderr)
-        self.train_times = np.asarray(self.train_times)
-        self.train_times_stderr = np.asarray(self.train_times_stderr)
-            
+        for params, task_group in zip(self.all_parameters, self.task_groups):
+            scores = [Evaluation(*t.get()).validation_score
+                      for t in task_group if t.ready()]
+            if len(scores) == 0:
+                continue
+            mean_scores.append((np.mean(scores), sem(scores), params))
+                       
+        return sorted(mean_scores, reverse=True)[:n_top]
+
+    def report(self, n_top=5):
+        bests = self.find_bests()
+        output = "Progress: {0}% ({1:03d}/{2:03d})\n".format(
+            self.progress(), self.completed(), self.total())
+        for i, best in enumerate(bests):
+            output += "\nRank {0}: {1:.5f} (+/-{2:.5f}): {3}".format(
+                i + 1, *best)
+        return output
+
     def __repr__(self):
-        """Display current evaluation statistics"""
-        self.update_summary()
-        if self.test_scores.shape[0] == 0:
-            return "Missing evaluation statistics"
-        n_total = len(self._scheduled_tasks)
-        n_done = len([t for t in self._scheduled_tasks if t.ready()])
-        test, test_stderr = self.test_scores[-1], self.test_scores_stderr[-1]
-        train, train_stderr = self.train_scores[-1], self.train_scores_stderr[-1]
-        time, time_stderr = self.train_times[-1], self.train_times_stderr[-1]
-        overfitting = np.max(train - test, 0)
-        underfitting = np.max(1 - train, 0)
-        return (
-                "Progress: {n_done}/{n_total} CV tasks\n"
-                "Last train score: {train:.5f} (+/-{train_stderr:.5f})\n"
-                "Last test score: {test:.5f} (+/-{test_stderr:.5f})\n"
-                "Last train time: {time:.3f}s (+/-{time_stderr:.3f})\n"
-                "Overfitting: {overfitting:.5f}\n"
-                "Underfitting: {underfitting:.5f}\n"
-        ).format(**locals())
-
-
-#pl.fill_between(train_sizes, mean_test - confidence, mean_test + confidence,
-#                color = 'b', alpha = .2)
-#pl.plot(train_sizes, mean_test, 'o-k', c='b', label = 'Test score')
-
-def plot_learning_curves(lc):
-    """Interative plot of a learning curve"""
-    lc.update_summary()  # ensure that stats are up to date
-    pl.figure()
-    if hasattr(lc, 'train_times'):
-        pl.subplot(211)
-    
-    pl.fill_between(lc.train_sizes,
-                    lc.train_scores - 2 * lc.train_scores_stderr,
-                    lc.train_scores + 2 * lc.train_scores_stderr,
-                    color = 'g', alpha = .2)
-    pl.plot(lc.train_sizes, lc.train_scores, 'o-k', c='g',
-            label = 'Train score')
-    
-    pl.fill_between(lc.train_sizes,
-                    lc.test_scores - 2 * lc.test_scores_stderr,
-                    lc.test_scores + 2 * lc.test_scores_stderr,
-                    color = 'b', alpha = .2)
-    pl.plot(lc.train_sizes, lc.test_scores, 'o-k', c='b',
-            label = 'Test score')
-    
-    pl.ylabel('Score')
-    pl.xlim(0, lc.n_samples)
-    pl.ylim((None, 1.01))  # The best possible score is 1.0
-    pl.legend(loc='best')
-    pl.title('Main train and test scores +/- 2 standard errors')
-    
-    if hasattr(lc, 'train_times'):
-        pl.subplot(212)
-        pl.errorbar(lc.train_sizes,
-                    lc.train_times,
-                    np.asarray(lc.train_times_stderr) * 2)
-        pl.xlim(0, lc.n_samples)
-        pl.ylabel('Training time (s)')
-        pl.xlabel('# training samples')
+        return self.report()

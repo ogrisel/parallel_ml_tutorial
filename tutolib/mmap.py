@@ -1,9 +1,13 @@
-from sklearn.externals import joblib
-from sklearn.cross_validation import ShuffleSplit
+import os
+from IPython.parallel import interactive
 
+
+@interactive
 def persist_cv_splits(name, X, y, n_cv_iter=5, suffix="_cv_%03d.pkl",
     test_size=0.25, random_state=None):
     """Materialize randomized train test splits of a dataset."""
+    from sklearn.externals import joblib
+    from sklearn.cross_validation import ShuffleSplit
 
     cv = ShuffleSplit(X.shape[0], n_iter=n_cv_iter,
         test_size=test_size, random_state=random_state)
@@ -23,10 +27,10 @@ def warm_mmap_on_cv_splits(client, cv_split_filenames):
 
     Assume the files are shared on all the hosts using NFS.
     """
-    import os
     # First step: query cluster to fetch one engine id per host
     all_engines = client[:]
 
+    @interactive
     def hostname():
         import socket
         return socket.gethostname()
@@ -39,6 +43,7 @@ def warm_mmap_on_cv_splits(client, cv_split_filenames):
 
     # Second step: for each data file and host, mmap the arrays of the file
     # and trigger a sequential read of all the arrays' data
+    @interactive
     def load_in_memory(filenames):
         from sklearn.externals import joblib
         for filename in filenames:

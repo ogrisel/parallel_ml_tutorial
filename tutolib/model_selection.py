@@ -108,6 +108,7 @@ class RandomizedGridSeach(object):
 
         # Abort any existing processing and erase previous state
         self.reset()
+        self.parameter_grid = parameter_grid
 
         # Warm the OS disk cache on each host with sequential reads
         # XXX: fix me: interactive namespace issues to resolve
@@ -137,22 +138,64 @@ class RandomizedGridSeach(object):
         mean_scores = []
         
         for params, task_group in zip(self.all_parameters, self.task_groups):
-            scores = [Evaluation(*t.get()).validation_score
-                      for t in task_group if t.ready()]
-            if len(scores) == 0:
+            evaluations = [Evaluation(*t.get())
+                           for t in task_group if t.ready()]
+            if len(evaluations) == 0:
                 continue
-            mean_scores.append((np.mean(scores), sem(scores), params))
+            val_scores = [e.validation_score for e in evaluations]
+            train_scores = [e.train_score for e in evaluations]
+            mean_scores.append((np.mean(val_scores), sem(val_scores),
+                                np.mean(train_scores), sem(train_scores),
+                                params))
                        
         return sorted(mean_scores, reverse=True)[:n_top]
 
     def report(self, n_top=5):
         bests = self.find_bests()
-        output = "Progress: {0}% ({1:03d}/{2:03d})\n".format(
-            self.progress(), self.completed(), self.total())
+        output = "Progress: {0:02d}% ({1:03d}/{2:03d})\n".format(
+            int(100 * self.progress()), self.completed(), self.total())
         for i, best in enumerate(bests):
-            output += "\nRank {0}: {1:.5f} (+/-{2:.5f}): {3}".format(
-                i + 1, *best)
+            output += ("\nRank {0}: validation: {1:.5f} (+/-{2:.5f})"
+                       " train: {3:.5f} (+/-{4:.5f}):\n {5}".format(
+                       i + 1, *best))
         return output
 
     def __repr__(self):
         return self.report()
+
+    def boxplot_parameters(self, display_train=False):
+        """Plot boxplot for each parameters independently"""
+        import pylab as pl
+        results = [Evaluation(*task.get())
+                   for task_group in self.task_groups
+                   for task in task_group if task.ready()]
+
+        n_rows = len(self.parameter_grid)
+        pl.figure()
+        for i, (param_name, param_values) in enumerate(self.parameter_grid.items()):
+            pl.subplot(n_rows, 1, i + 1)
+            val_scores_per_value = []
+            train_scores_per_value = []
+            for param_value in param_values:
+                train_scores = [r.train_score for r in results
+                                if r.parameters[param_name] == param_value]
+                train_scores_per_value.append(train_scores)
+
+                val_scores = [r.validation_score for r in results
+                              if r.parameters[param_name] == param_value]
+                val_scores_per_value.append(val_scores)
+
+            widths = 0.25
+            positions = np.arange(len(param_values)) + 1
+            offset = 0
+            if display_train:
+                offset = 0.175
+                pl.boxplot(train_scores_per_value, widths=widths,
+                    positions=positions - offset)
+
+            pl.boxplot(val_scores_per_value, widths=widths,
+                positions=positions + offset)
+
+            pl.xticks(np.arange(len(param_values)) + 1, param_values)
+            pl.xlabel(param_name)
+            pl.ylabel("Validation Score")

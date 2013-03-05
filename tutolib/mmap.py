@@ -8,6 +8,7 @@ def persist_cv_splits(name, X, y, n_cv_iter=5, suffix="_cv_%03d.pkl",
     """Materialize randomized train test splits of a dataset."""
     from sklearn.externals import joblib
     from sklearn.cross_validation import ShuffleSplit
+    import os
 
     cv = ShuffleSplit(X.shape[0], n_iter=n_cv_iter,
         test_size=test_size, random_state=random_state)
@@ -15,11 +16,13 @@ def persist_cv_splits(name, X, y, n_cv_iter=5, suffix="_cv_%03d.pkl",
 
     for i, (train, test) in enumerate(cv):
         cv_fold = (X[train], y[train], X[test], y[test])
-        cv_split_filename = name + suffix % i
+        cv_split_filename = os.path.abspath(name + suffix % i)
         joblib.dump(cv_fold, cv_split_filename)
         cv_split_filenames.append(cv_split_filename)
 
     return cv_split_filenames
+
+    import os
 
 
 def warm_mmap_on_cv_splits(client, cv_split_filenames):

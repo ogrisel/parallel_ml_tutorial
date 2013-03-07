@@ -4,9 +4,15 @@ from collections import defaultdict
 from IPython.parallel import interactive
 from scipy.stats import sem
 import numpy as np
-from sklearn.grid_search import IterGrid
+
 from sklearn.utils import check_random_state
 from sklearn.cross_validation import ShuffleSplit
+try:
+    # sklearn 0.14+
+    from sklearn.grid_search import ParameterGrid
+except ImportError:
+    # sklearn 0.13
+    from sklearn.grid_search import IterGrid
 
 from tutolib.mmap import warm_mmap_on_cv_splits
 
@@ -83,7 +89,8 @@ class RandomizedGridSeach(object):
         return self
 
     def completed(self):
-        return sum(self.map_tasks(lambda t: t.ready()))
+        return sum(self.map_tasks(
+                   lambda t: t.ready() and not hasattr(t, '_exception')))
 
     def total(self):
         return sum(self.map_tasks(lambda t: 1))
@@ -139,7 +146,8 @@ class RandomizedGridSeach(object):
         
         for params, task_group in zip(self.all_parameters, self.task_groups):
             evaluations = [Evaluation(*t.get())
-                           for t in task_group if t.ready()]
+                           for t in task_group
+                           if t.ready() and not hasattr(t, '_exception')]
             if len(evaluations) == 0:
                 continue
             val_scores = [e.validation_score for e in evaluations]
@@ -151,7 +159,7 @@ class RandomizedGridSeach(object):
         return sorted(mean_scores, reverse=True)[:n_top]
 
     def report(self, n_top=5):
-        bests = self.find_bests()
+        bests = self.find_bests(n_top=n_top)
         output = "Progress: {0:02d}% ({1:03d}/{2:03d})\n".format(
             int(100 * self.progress()), self.completed(), self.total())
         for i, best in enumerate(bests):
@@ -198,4 +206,4 @@ class RandomizedGridSeach(object):
 
             pl.xticks(np.arange(len(param_values)) + 1, param_values)
             pl.xlabel(param_name)
-            pl.ylabel("Validation Score")
+            pl.ylabel("Val. Score")

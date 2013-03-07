@@ -2,6 +2,7 @@ from collections import namedtuple
 from collections import defaultdict
 
 from IPython.parallel import interactive
+from IPython.parallel import TaskAborted
 from scipy.stats import sem
 import numpy as np
 
@@ -12,9 +13,13 @@ try:
     from sklearn.grid_search import ParameterGrid
 except ImportError:
     # sklearn 0.13
-    from sklearn.grid_search import IterGrid
+    from sklearn.grid_search import IterGrid as ParameterGrid
 
 from tutolib.mmap import warm_mmap_on_cv_splits
+
+
+def is_aborted(task):
+    return isinstance(getattr(task, '_exception', None), TaskAborted)
 
 
 @interactive
@@ -89,8 +94,7 @@ class RandomizedGridSeach(object):
         return self
 
     def completed(self):
-        return sum(self.map_tasks(
-                   lambda t: t.ready() and not hasattr(t, '_exception')))
+        return sum(self.map_tasks(lambda t: t.ready() and not is_aborted(t)))
 
     def total(self):
         return sum(self.map_tasks(lambda t: 1))
@@ -124,7 +128,7 @@ class RandomizedGridSeach(object):
 
         # Randomize the grid order
         random_state = check_random_state(self.random_state)
-        self.all_parameters = list(IterGrid(parameter_grid))
+        self.all_parameters = list(ParameterGrid(parameter_grid))
         random_state.shuffle(self.all_parameters)
 
         for params in self.all_parameters:
@@ -147,7 +151,8 @@ class RandomizedGridSeach(object):
         for params, task_group in zip(self.all_parameters, self.task_groups):
             evaluations = [Evaluation(*t.get())
                            for t in task_group
-                           if t.ready() and not hasattr(t, '_exception')]
+                           if t.ready() and not is_aborted(t)]
+
             if len(evaluations) == 0:
                 continue
             val_scores = [e.validation_score for e in evaluations]
@@ -176,7 +181,8 @@ class RandomizedGridSeach(object):
         import pylab as pl
         results = [Evaluation(*task.get())
                    for task_group in self.task_groups
-                   for task in task_group if task.ready()]
+                   for task in task_group
+                   if task.ready() and not is_aborted(task)]
 
         n_rows = len(self.parameter_grid)
         pl.figure()

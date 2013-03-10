@@ -126,7 +126,7 @@ class RandomizedGridSeach(object):
 
         # Warm the OS disk cache on each host with sequential reads instead
         # of having concurrent evaluation tasks compete for the the same host
-        # disk resources later 
+        # disk resources later.
         if pre_warm:
             warm_mmap_on_cv_splits(self.lb_view.client, cv_split_filenames)
 

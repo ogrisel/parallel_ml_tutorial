@@ -14,6 +14,6 @@ exercises:
 	python housekeeping.py exercises
 
 
-clean: clean-pyc clean-data clean-notebooks
+clean: clean-pyc clean-data strip
 
 pre-commit: strip exercises

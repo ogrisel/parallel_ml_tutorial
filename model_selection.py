@@ -4,6 +4,7 @@ Author: Olivier Grisel <olivier@ogrisel.com>
 Licensed: Simplified BSD
 """
 from collections import namedtuple
+import os
 
 from IPython.parallel import interactive
 from IPython.parallel import TaskAborted
@@ -19,6 +20,7 @@ except ImportError:
     from sklearn.grid_search import IterGrid as ParameterGrid
 
 from mmap_utils import warm_mmap_on_cv_splits
+from mmap_utils import persist_cv_splits
 
 
 def is_aborted(task):
@@ -77,15 +79,21 @@ class RandomizedGridSeach(object):
         self.task_groups = []
         self.lb_view = load_balanced_view
         self.random_state = random_state
+        self._temp_files = []
 
-    def map_tasks(self, f):
-        return [f(task) for task_group in self.task_groups
-                        for task in task_group]
+    def map_tasks(self, f, skip_aborted=True):
+        if skip_aborted:
+            return [f(task) for task_group in self.task_groups
+                            for task in task_group
+                            if not is_aborted(task)]
+        else:
+            return [f(task) for task_group in self.task_groups
+                            for task in task_group]
 
     def abort(self):
         for task_group in self.task_groups:
             for task in task_group:
-                if not task.ready():
+                if not task.ready() and not is_aborted(task):
                     try:
                         task.abort()
                     except AssertionError:
@@ -93,14 +101,14 @@ class RandomizedGridSeach(object):
         return self
 
     def wait(self):
-        self.map_tasks(lambda t: t.wait())
+        self.map_tasks(lambda t: t.wait(), skip_aborted=True)
         return self
 
     def completed(self):
-        return sum(self.map_tasks(lambda t: t.ready() and not is_aborted(t)))
+        return sum(self.map_tasks(lambda t: t.ready(), skip_aborted=True))
 
     def total(self):
-        return sum(self.map_tasks(lambda t: 1))
+        return sum(self.map_tasks(lambda t: 1, skip_aborted=False))
 
     def progress(self):
         c = self.completed()
@@ -111,18 +119,27 @@ class RandomizedGridSeach(object):
 
     def reset(self):
         # Abort any other previously scheduled tasks
-        self.map_tasks(lambda t: t.abort())
+        self.abort()
 
         # Schedule a new batch of evalutation tasks
         self.task_groups, self.all_parameters = [], []
 
+        # Collect temporary files:
+        for filename in self._temp_files:
+            os.unlink(filename)
+        del self._temp_files[:]
+
     def launch_for_splits(self, model, parameter_grid, cv_split_filenames,
-        pre_warm=True):
+        pre_warm=True, collect_files_on_reset=False):
         """Launch a Grid Search on precomputed CV splits."""
 
         # Abort any existing processing and erase previous state
         self.reset()
         self.parameter_grid = parameter_grid
+
+        # Mark the files for garbage collection
+        if collect_files_on_reset:
+            self._temp_files.extend(cv_split_filenames)
 
         # Warm the OS disk cache on each host with sequential reads instead
         # of having concurrent evaluation tasks compete for the the same host
@@ -147,6 +164,15 @@ class RandomizedGridSeach(object):
 
         # Make it possible to chain method calls
         return self
+
+    def launch_for_arrays(self, model, parameter_grid, X, y, n_cv_iter=5, train_size=None,
+                          test_size=0.25, pre_warm=True, folder=".", name=None,
+                          random_state=None):
+        cv_split_filenames = persist_cv_splits(
+            X, y, n_cv_iter=n_cv_iter, train_size=train_size, test_size=test_size,
+            name=name, folder=folder, random_state=random_state)
+        return self.launch_for_splits(model, parameter_grid,
+            cv_split_filenames, pre_warm=pre_warm, collect_files_on_reset=True)
 
     def find_bests(self, n_top=5):
         """Compute the mean score of the completed tasks"""

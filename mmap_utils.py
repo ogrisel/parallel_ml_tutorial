@@ -3,12 +3,17 @@ from IPython.parallel import interactive
 
 
 @interactive
-def persist_cv_splits(name, X, y, n_cv_iter=5, suffix="_cv_%03d.pkl",
-    test_size=0.25, random_state=None):
+def persist_cv_splits(X, y, name=None, n_cv_iter=5, suffix="_cv_%03d.pkl",
+                      train_size=None, test_size=0.25, random_state=None,
+                      folder='.'):
     """Materialize randomized train test splits of a dataset."""
     from sklearn.externals import joblib
     from sklearn.cross_validation import ShuffleSplit
     import os
+    import uuid
+
+    if name is None:
+        name = uuid.uuid4().get_hex()
 
     cv = ShuffleSplit(X.shape[0], n_iter=n_cv_iter,
         test_size=test_size, random_state=random_state)
@@ -16,13 +21,12 @@ def persist_cv_splits(name, X, y, n_cv_iter=5, suffix="_cv_%03d.pkl",
 
     for i, (train, test) in enumerate(cv):
         cv_fold = (X[train], y[train], X[test], y[test])
-        cv_split_filename = os.path.abspath(name + suffix % i)
+        cv_split_filename = os.path.join(folder, name + suffix % i)
+        cv_split_filename = os.path.abspath(cv_split_filename)
         joblib.dump(cv_fold, cv_split_filename)
         cv_split_filenames.append(cv_split_filename)
 
     return cv_split_filenames
-
-    import os
 
 
 def warm_mmap_on_cv_splits(client, cv_split_filenames):

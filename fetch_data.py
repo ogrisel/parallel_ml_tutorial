@@ -27,10 +27,17 @@ COVERTYPE_URL = ('http://archive.ics.uci.edu/ml/'
 def get_datasets_folder():
     here = os.path.dirname(__file__)
     datasets_folder = os.path.abspath(os.path.join(here, 'datasets'))
+    datasets_archive = os.path.abspath(os.path.join(here, 'datasets.zip'))
 
     if not os.path.exists(datasets_folder):
-        print("Creating datasets folder: " + datasets_folder)
-        os.makedirs(datasets_folder)
+        if os.path.exists(datasets_archive):
+            print("Extracting " + datasets_archive)
+            zf = zipfile.ZipFile(datasets_archive)
+            zf.extractall('.')
+            assert os.path.exists(datasets_folder)
+        else:
+            print("Creating datasets folder: " + datasets_folder)
+            os.makedirs(datasets_folder)
     else:
         print("Using existing dataset folder:" + datasets_folder)
     return datasets_folder

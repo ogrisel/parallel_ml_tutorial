@@ -17,3 +17,6 @@ exercises:
 clean: clean-pyc clean-data strip
 
 pre-commit: strip exercises
+
+dist: pre-commit
+	python fetch_data.py

@@ -89,8 +89,8 @@ def check_sentiment140(datasets_folder):
 
 def check_covertype(datasets_folder):
     print("Checking availability of the covertype dataset")
+    archive_path = os.path.join(datasets_folder, 'covtype.data.gz')
     covtype_dir = os.path.join(datasets_folder, "covertype")
-    archive_path = os.path.join(covtype_dir, 'covtype.data.gz')
     samples_path = os.path.join(covtype_dir, "samples.pkl")
     targets_path = os.path.join(covtype_dir, "targets.pkl")
 

@@ -124,7 +124,9 @@ def check_covertype(datasets_folder):
 
 
 if __name__ == "__main__":
+    import sys
     datasets_folder = get_datasets_folder()
     check_twenty_newsgroups(datasets_folder)
     check_sentiment140(datasets_folder)
-    check_covertype(datasets_folder)
+    if 'covertype' in sys.argv:
+        check_covertype(datasets_folder)

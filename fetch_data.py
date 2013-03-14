@@ -118,8 +118,8 @@ def check_covertype(datasets_folder):
         X = Xy[:, :-1]
         y = Xy[:, -1].astype(np.int32)
 
-        joblib.dump(X, samples_path, compress=9)
-        joblib.dump(y, targets_path, compress=9)
+        joblib.dump(X, samples_path)
+        joblib.dump(y, targets_path )
     print("=> Success!")
 
 

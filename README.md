@@ -33,7 +33,7 @@ if you are new to the NumPy / SciPy / matplotlib ecosystem.
 ## Setup
 
 Install NumPy, SciPy, matplotlib, IPython and scikit-learn in their latest
-stable version (0.13 for IPython and 0.12.1 for scikit-learn at the time of
+stable version (0.13.1 for IPython and 0.13.1 for scikit-learn at the time of
 writing).
 
 You can find up to date installation instructions on

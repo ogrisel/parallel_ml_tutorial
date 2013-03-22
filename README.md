@@ -1,7 +1,7 @@
 # Parallel Machine Learning with scikit-learn and IPython
 
 
-[![Video Tutorial](https://raw.github.com/ogrisel/parallel_ml_tutorial/master/ressources/youtube_screenshot.png)](https://www.youtube.com/watch?v=iFkRt3BCctg)
+[![Video Tutorial](https://raw.github.com/ogrisel/parallel_ml_tutorial/master/resources/youtube_screenshot.png)](https://www.youtube.com/watch?v=iFkRt3BCctg)
 
 
 ## Scope of this tutorial:

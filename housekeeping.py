@@ -17,7 +17,7 @@ def remove_outputs(nb):
                     del cell['prompt_number']
 
 
-def remote_solutions(nb):
+def remove_solutions(nb):
     """Generate a version of the notebook with stripped exercises solutions"""
     for ws in nb.worksheets:
         inside_solution = False
@@ -75,7 +75,7 @@ if __name__ == '__main__':
             print("Generating solution-free notebook: " + notebook)
             with io.open(solution, 'rb') as f:
                 nb = current.read(f, 'json')
-            remote_solutions(nb)
+            remove_solutions(nb)
             remove_outputs(nb)
             with io.open(notebook, 'wb') as f:
                 nb = current.write(nb, f, 'json')

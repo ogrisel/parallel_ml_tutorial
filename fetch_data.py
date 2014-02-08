@@ -127,6 +127,7 @@ if __name__ == "__main__":
     import sys
     datasets_folder = get_datasets_folder()
     check_twenty_newsgroups(datasets_folder)
-    check_sentiment140(datasets_folder)
+    if 'sentiment140' in sys.argv:
+        check_sentiment140(datasets_folder)
     if 'covertype' in sys.argv:
         check_covertype(datasets_folder)

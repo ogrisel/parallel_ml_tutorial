@@ -3,6 +3,8 @@
 
 [![Video Tutorial](https://raw.github.com/ogrisel/parallel_ml_tutorial/master/resources/youtube_screenshot.png)](https://www.youtube.com/watch?v=iFkRt3BCctg)
 
+Video recording of this tutorial given at PyCon in 2013. It does not include
+the introduction on predictive modeling with the Titanic dataset from Kaggle.
 
 ## Scope of this tutorial:
 
@@ -24,7 +26,7 @@
 
 ## Target audience
 
-This tutorial targets developers with a prior experience with scikit-learn and
+This tutorial targets developers with some experience with scikit-learn and
 machine learning concepts in general.
 
 It is recommended to first go through one of the tutorials hosted at

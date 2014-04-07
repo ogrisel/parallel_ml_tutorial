@@ -13,7 +13,7 @@ def remove_outputs(nb):
         for cell in ws.cells:
             if cell.cell_type == 'code':
                 cell.outputs = []
-                if cell.has_key('prompt_number'):
+                if 'prompt_number' in cell:
                     del cell['prompt_number']
 
 
@@ -53,10 +53,10 @@ if __name__ == '__main__':
             fnames = [target]
         for fname in fnames:
             print("Removing outputs for: " + fname)
-            with io.open(fname, 'rb') as f:
+            with open(fname, 'r') as f:
                 nb = current.read(f, 'json')
             remove_outputs(nb)
-            with io.open(fname, 'wb') as f:
+            with open(fname, 'w') as f:
                 nb = current.write(nb, f, 'json')
     elif cmd == 'exercises':
         # Copy the images from the solutions to the notebooks folder
@@ -73,11 +73,11 @@ if __name__ == '__main__':
             solution = os.path.join('solutions', fname)
             notebook = os.path.join('notebooks', fname)
             print("Generating solution-free notebook: " + notebook)
-            with io.open(solution, 'rb') as f:
+            with open(solution, 'r') as f:
                 nb = current.read(f, 'json')
             remove_solutions(nb)
             remove_outputs(nb)
-            with io.open(notebook, 'wb') as f:
+            with open(notebook, 'w') as f:
                 nb = current.write(nb, f, 'json')
     else:
         print("Unsupported command")

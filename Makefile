@@ -1,10 +1,10 @@
 clean-pyc:
-	find . -name "*.pyc" | xargs rm
+	find . -name "*.pyc" | xargs rm -f
 
 clean-data:
-	find . -name "*.pkl" | xargs rm
-	find . -name "*.npy" | xargs rm
-	find . -name "*.mmap" | xargs rm
+	find . -name "*.pkl" | xargs rm -f
+	find . -name "*.npy" | xargs rm -f
+	find . -name "*.mmap" | xargs rm -f
 
 strip:
 	# Strip output and prompt numbers in solutions

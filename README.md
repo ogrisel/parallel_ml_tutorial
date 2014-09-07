@@ -95,3 +95,17 @@ watch the output display directly under the cell and the cursor move on to the
 next cell. Go to the "Help" menu for links to the notebook tutorial.
 
 TODO: add links to online rendered versions as well
+
+Credits
+=======
+
+Some of this material is adapted from the scipy 2013 tutorial:
+
+    http://github.com/jakevdp/sklearn_scipy2013
+
+Original authors:
+
+- Gael Varoquaux [@GaelVaroquaux](https://twitter.com/GaelVaroquaux) | http://gael-varoquaux.info
+- Jake VanderPlas [@jakevdp](https://twitter.com/jakevdp) | http://jakevdp.github.com
+- Olivier Grisel [@ogrisel](https://twitter.com/ogrisel) | http://ogrisel.com
+

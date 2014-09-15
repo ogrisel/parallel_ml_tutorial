@@ -26,10 +26,6 @@ SENTIMENT140_ARCHIVE_NAME = "trainingandtestdata.zip"
 COVERTYPE_URL = ('http://archive.ics.uci.edu/ml/'
                  'machine-learning-databases/covtype/covtype.data.gz')
 
-# Source: https://www.kaggle.com/c/titanic-gettingStarted/data
-TITANIC_URL = ("https://dl.dropboxusercontent.com/"
-               "u/5743203/data/titanic/titanic_train.csv")
-
 
 def get_datasets_folder():
     here = os.path.dirname(__file__)
@@ -130,20 +126,11 @@ def check_covertype(datasets_folder):
     print("=> Success!")
 
 
-def check_titanic(datasets_folder):
-    print("Checking availability of the titanic dataset")
-    csv_filename = os.path.join(datasets_folder, 'titanic_train.csv')
-    if not os.path.exists(csv_filename):
-        print("Downloading titanic data from %s" % TITANIC_URL)
-        open(csv_filename, 'wb').write(urlopen(TITANIC_URL).read())
-    print("=> Success!")
-
 
 if __name__ == "__main__":
     import sys
     datasets_folder = get_datasets_folder()
     check_twenty_newsgroups(datasets_folder)
-    check_titanic(datasets_folder)
     if 'sentiment140' in sys.argv:
         check_sentiment140(datasets_folder)
     if 'covertype' in sys.argv:

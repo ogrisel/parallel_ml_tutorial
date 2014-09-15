@@ -12,12 +12,7 @@ from scipy.stats import sem
 import numpy as np
 
 from sklearn.utils import check_random_state
-try:
-    # sklearn 0.14+
-    from sklearn.grid_search import ParameterGrid
-except ImportError:
-    # sklearn 0.13
-    from sklearn.grid_search import IterGrid as ParameterGrid
+from sklearn.grid_search import ParameterGrid
 
 from mmap_utils import warm_mmap_on_cv_splits
 from mmap_utils import persist_cv_splits
@@ -191,7 +186,7 @@ class RandomizedGridSeach(object):
                                 np.mean(train_scores), sem(train_scores),
                                 params))
 
-        return sorted(mean_scores, reverse=True)[:n_top]
+        return sorted(mean_scores, reverse=True, key=lambda x: x[0])[:n_top]
 
     def report(self, n_top=5):
         bests = self.find_bests(n_top=n_top)

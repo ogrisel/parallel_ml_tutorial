@@ -46,7 +46,8 @@ def warm_mmap_on_cv_splits(client, cv_split_filenames):
     one_engine_per_host = dict((hostname, engine_id)
                                for engine_id, hostname
                                in hostnames.items())
-    hosts_view = client[one_engine_per_host.values()]
+    one_engine_per_host_ids = list(one_engine_per_host.values())
+    hosts_view = client[one_engine_per_host_ids]
 
     # Second step: for each data file and host, mmap the arrays of the file
     # and trigger a sequential read of all the arrays' data

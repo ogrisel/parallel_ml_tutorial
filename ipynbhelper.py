@@ -4,22 +4,21 @@ This a mix from @minrk's various gists.
 
 """
 
+import time
 import sys
 import os
 import io
 try:
     from queue import Empty
 except:
+    # Python 2 backward compat
     from Queue import Empty
 
 from IPython.nbformat import current
-try:
-    from IPython.kernel import KernelManager
-    assert KernelManager  # to silence pyflakes
-except ImportError:
-    # 0.13
-    from IPython.zmq.blockingkernelmanager import BlockingKernelManager
-    KernelManager = BlockingKernelManager
+from IPython.kernel import KernelManager
+from IPython.parallel import Client
+
+assert KernelManager  # to silence pyflakes
 
 
 def remove_outputs(nb):
@@ -90,6 +89,28 @@ def run_cell(shell, iopub, cell, timeout=300):
             print("unhandled iopub msg: %s" % msg_type)
 
         outs.append(out)
+
+    # Special handling of ipcluster restarts
+    if '!ipcluster stop' in cell.input:
+        # wait some time for cluster commands to complete
+        for i in range(10):
+            try:
+                if len(Client()) == 0:
+                    break
+            except FileNotFoundError:
+                pass
+            sys.stdout.write("@"); sys.stdout.flush()
+            time.sleep(5)
+    if '!ipcluster start' in cell.input:
+        # wait some time for cluster commands to complete
+        for i in range(10):
+            try:
+                if len(Client()) > 0:
+                    break
+            except FileNotFoundError:
+                pass
+            sys.stdout.write("#"); sys.stdout.flush()
+            time.sleep(5)
     return outs, failed
 
 
@@ -124,6 +145,7 @@ def run_notebook(nb):
             failures += failed
             cells += 1
             sys.stdout.write('.')
+            sys.stdout.flush()
 
     print()
     print("ran notebook %s" % nb.metadata.name)

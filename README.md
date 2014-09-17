@@ -7,6 +7,10 @@ Video recording of this tutorial given at PyCon in 2013. The tutorial material
 has been rearranged in part and extended. Look at the title of the of the
 notebooks to be able to follow along the presentation.
 
+Browse the static [notebooks on nbviewer.ipython.org](
+http://nbviewer.ipython.org/github/ogrisel/parallel_ml_tutorial/tree/master/rendered_notebooks/).
+
+
 ## Scope of this tutorial:
 
 - Learn common machine learning concepts and how they match the scikit-learn
@@ -94,7 +98,6 @@ You can then execute the cell in order by hitting the "Shift-Enter" keys and
 watch the output display directly under the cell and the cursor move on to the
 next cell. Go to the "Help" menu for links to the notebook tutorial.
 
-TODO: add links to online rendered versions as well
 
 Credits
 =======

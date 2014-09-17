@@ -18,6 +18,12 @@ from IPython.nbformat import current
 from IPython.kernel import KernelManager
 from IPython.parallel import Client
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
+
 assert KernelManager  # to silence pyflakes
 
 

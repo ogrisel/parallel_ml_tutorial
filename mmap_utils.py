@@ -13,7 +13,12 @@ def persist_cv_splits(X, y, name=None, n_cv_iter=5, suffix="_cv_%03d.pkl",
     import uuid
 
     if name is None:
-        name = uuid.uuid4().get_hex()
+        u = uuid.uuid4()
+        if hasattr(u, 'get_hex'):
+            # Python 2 compat
+            name = u.get_hex()
+        else:
+            name = u.hex
 
     cv = ShuffleSplit(X.shape[0], n_iter=n_cv_iter,
         test_size=test_size, random_state=random_state)

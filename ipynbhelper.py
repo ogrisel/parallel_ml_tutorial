@@ -117,8 +117,6 @@ def run_cell(kc, cell, timeout=300):
             try:
                 if len(Client()) == 0:
                     break
-            except FileNotFoundError:
-                pass
             except OSError:
                 pass
             sys.stdout.write("@")
@@ -130,7 +128,7 @@ def run_cell(kc, cell, timeout=300):
             try:
                 if len(Client()) > 0:
                     break
-            except FileNotFoundError:
+            except OSError:
                 pass
             sys.stdout.write("#")
             sys.stdout.flush()

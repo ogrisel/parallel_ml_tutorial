@@ -14,7 +14,7 @@ except:
     # Python 2 backward compat
     from Queue import Empty
 
-from IPython.nbformat import current
+from IPython import nbformat
 from IPython.kernel import KernelManager
 from IPython.parallel import Client
 
@@ -43,12 +43,12 @@ def remove_signature(nb):
         del nb.metadata['signature']
 
 
-def run_cell(shell, iopub, cell, timeout=300):
+def run_cell(kc, cell, timeout=300):
     if not hasattr(cell, 'input'):
         return [], False
-    shell.execute(cell.input)
+    kc.execute(cell.input)
     # wait for finish, maximum 5min by default
-    reply = shell.get_msg(timeout=timeout)['content']
+    reply = kc.get_shell_msg(timeout=timeout)['content']
     if reply['status'] == 'error':
         failed = True
         print("\nFAILURE:")
@@ -63,22 +63,36 @@ def run_cell(shell, iopub, cell, timeout=300):
     outs = []
     while True:
         try:
-            msg = iopub.get_msg(timeout=0.2)
+            msg = kc.get_iopub_msg(timeout=0.2)
         except Empty:
             break
         msg_type = msg['msg_type']
-        if msg_type in ('status', 'pyin'):
+        if msg_type in ('status', 'pyin', 'execute_input'):
             continue
         elif msg_type == 'clear_output':
             outs = []
             continue
 
         content = msg['content']
-        out = current.NotebookNode(output_type=msg_type)
+
+        # IPython 3 writes pyerr/pyout in the notebook format but uses
+        # error/execute_result in the message spec. This does the translation
+        # needed for tests to pass with IPython 3
+        notebook3_format_conversions = {
+            'error': 'pyerr',
+            'execute_result': 'pyout'
+        }
+        msg_type = notebook3_format_conversions.get(msg_type, msg_type)
+        out = nbformat.NotebookNode(output_type=msg_type)
 
         if msg_type == 'stream':
             out.stream = content['name']
-            out.text = content['data']
+            # in msgspec 5, this is name, text
+            # in msgspec 4, this is name, data
+            if 'text' in content:
+                out.text = content['text']
+            else:
+                out.text = content['data']
         elif msg_type in ('display_data', 'pyout'):
             for mime, data in content['data'].items():
                 attr = mime.split('/')[-1].lower()
@@ -105,7 +119,10 @@ def run_cell(shell, iopub, cell, timeout=300):
                     break
             except FileNotFoundError:
                 pass
-            sys.stdout.write("@"); sys.stdout.flush()
+            except OSError:
+                pass
+            sys.stdout.write("@")
+            sys.stdout.flush()
             time.sleep(5)
     if '!ipcluster start' in cell.input:
         # wait some time for cluster commands to complete
@@ -115,7 +132,8 @@ def run_cell(shell, iopub, cell, timeout=300):
                     break
             except FileNotFoundError:
                 pass
-            sys.stdout.write("#"); sys.stdout.flush()
+            sys.stdout.write("#")
+            sys.stdout.flush()
             time.sleep(5)
     return outs, failed
 
@@ -123,20 +141,29 @@ def run_cell(shell, iopub, cell, timeout=300):
 def run_notebook(nb):
     km = KernelManager()
     km.start_kernel(stderr=open(os.devnull, 'w'))
-    if hasattr(km, 'client'):
-        kc = km.client()
-        kc.start_channels()
-        iopub = kc.iopub_channel
-    else:
-        # IPython 0.13 compat
-        kc = km
-        kc.start_channels()
-        iopub = kc.sub_channel
-    shell = kc.shell_channel
+
+    kc = km.client()
+    kc.start_channels()
+    try:
+        kc.wait_for_ready()
+    except AttributeError:
+        # IPython < 3
+        kc.kernel_info()
+        while True:
+            msg = kc.get_shell_msg(block=True, timeout=30)
+            if msg['msg_type'] == 'kernel_info_reply':
+                break
+
+        # Flush IOPub channel
+        while True:
+            try:
+                msg = kc.get_iopub_msg(block=True, timeout=0.2)
+            except Empty:
+                break
 
     # simple ping:
-    shell.execute("pass")
-    shell.get_msg()
+    kc.execute("pass")
+    kc.get_shell_msg()
 
     cells = 0
     failures = 0
@@ -145,7 +172,7 @@ def run_notebook(nb):
             if cell.cell_type != 'code':
                 continue
 
-            outputs, failed = run_cell(shell, iopub, cell)
+            outputs, failed = run_cell(kc, cell)
             cell.outputs = outputs
             cell['prompt_number'] = cells
             failures += failed
@@ -167,7 +194,7 @@ def process_notebook_file(fname, action='clean', output_fname=None):
     print("Performing '{}' on: {}".format(action, fname))
     orig_wd = os.getcwd()
     with io.open(fname, 'r') as f:
-        nb = current.read(f, 'json')
+        nb = nbformat.read(f, nbformat.NO_CONVERT)
 
     if action == 'check':
         os.chdir(os.path.dirname(fname))
@@ -186,7 +213,7 @@ def process_notebook_file(fname, action='clean', output_fname=None):
     if output_fname is None:
         output_fname = fname
     with io.open(output_fname, 'w') as f:
-        nb = current.write(nb, f, 'json')
+        nb = nbformat.write(nb, f, nbformat.NO_CONVERT)
 
 
 if __name__ == '__main__':

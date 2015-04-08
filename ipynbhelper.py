@@ -29,12 +29,17 @@ assert KernelManager  # to silence pyflakes
 
 def remove_outputs(nb):
     """Remove the outputs from a notebook"""
-    for ws in nb.worksheets:
-        for cell in ws.cells:
-            if cell.cell_type == 'code':
-                cell.outputs = []
-                if 'prompt_number' in cell:
-                    del cell['prompt_number']
+    if hasattr(nb, 'worksheets'):
+        # nobody uses more than 1 worksheet
+        ws = nb.worksheets[0]
+    else:
+        # no more worksheet level in new format
+        ws = nb
+    for cell in ws.cells:
+        if cell.cell_type == 'code':
+            cell.outputs = []
+            if 'prompt_number' in cell:
+                del cell['prompt_number']
 
 
 def remove_signature(nb):
@@ -165,22 +170,27 @@ def run_notebook(nb):
 
     cells = 0
     failures = 0
-    for ws in nb.worksheets:
-        for cell in ws.cells:
-            if cell.cell_type != 'code':
-                continue
+    if hasattr(nb, 'worksheets'):
+        # nobody uses more than 1 worksheet
+        ws = nb.worksheets[0]
+    else:
+        # no more worksheet level in new format
+        ws = nb
 
-            outputs, failed = run_cell(kc, cell)
-            cell.outputs = outputs
-            cell['prompt_number'] = cells
-            failures += failed
-            cells += 1
-            sys.stdout.write('.')
-            sys.stdout.flush()
+    for cell in ws.cells:
+        if cell.cell_type != 'code':
+            continue
+
+        outputs, failed = run_cell(kc, cell)
+        cell.outputs = outputs
+        cell['prompt_number'] = cells
+        failures += failed
+        cells += 1
+        sys.stdout.write('.')
+        sys.stdout.flush()
 
     print()
-    print("ran notebook %s" % nb.metadata.name)
-    print("    ran %3i cells" % cells)
+    print("ran %3i cells" % cells)
     if failures:
         print("    %3i cells raised exceptions" % failures)
     kc.stop_channels()

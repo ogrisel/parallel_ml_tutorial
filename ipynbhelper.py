@@ -18,14 +18,6 @@ from IPython import nbformat
 from IPython.kernel import KernelManager
 from IPython.parallel import Client
 
-try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = IOError
-
-
-assert KernelManager  # to silence pyflakes
-
 
 def remove_outputs(nb):
     """Remove the outputs from a notebook"""

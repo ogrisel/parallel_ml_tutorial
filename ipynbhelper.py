@@ -32,6 +32,9 @@ def remove_outputs(nb):
             cell.outputs = []
             if 'prompt_number' in cell:
                 del cell['prompt_number']
+            if 'execution_count' in cell:
+                # notebook format v4
+                cell['execution_count'] = None
 
 
 def remove_signature(nb):
@@ -82,6 +85,10 @@ def run_cell(kc, cell, timeout=300):
         msg_type = notebook3_format_conversions.get(msg_type, msg_type)
         out = nbformat.NotebookNode(output_type=msg_type)
 
+        if 'execution_count' in content:
+            cell['prompt_number'] = content['execution_count']
+            out.prompt_number = content['execution_count']
+
         if msg_type == 'stream':
             out.stream = content['name']
             # in msgspec 5, this is name, text
@@ -96,8 +103,6 @@ def run_cell(kc, cell, timeout=300):
                 # this gets most right, but fix svg+html, plain
                 attr = attr.replace('+xml', '').replace('plain', 'text')
                 setattr(out, attr, data)
-            if msg_type == 'pyout':
-                out.prompt_number = content['execution_count']
         elif msg_type == 'pyerr':
             out.ename = content['ename']
             out.evalue = content['evalue']
@@ -193,6 +198,10 @@ def run_notebook(nb):
 def process_notebook_file(fname, action='clean', output_fname=None):
     print("Performing '{}' on: {}".format(action, fname))
     orig_wd = os.getcwd()
+    # XXX: Ugly hack to preserve backward compat for now
+    cmd = ('ipython nbconvert --quiet --to notebook --nbformat 3'
+           ' --output="%s" "%s"') % (fname, fname)
+    os.system(cmd)
     with io.open(fname, 'r') as f:
         nb = nbformat.read(f, nbformat.NO_CONVERT)
 

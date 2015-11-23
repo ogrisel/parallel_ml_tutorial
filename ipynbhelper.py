@@ -14,9 +14,22 @@ except:
     # Python 2 backward compat
     from Queue import Empty
 
-from IPython import nbformat
-from IPython.kernel import KernelManager
-from IPython.parallel import Client
+
+try:
+    from ipyparallel import Client
+except ImportError:
+    # Backward compat prior to IPython / Jupyter split
+    from IPython.parallel import Client
+try:
+    import nbformat
+except ImportError:
+    # Backward compat prior to IPython / Jupyter split
+    from IPython import nbformat
+try:
+    from jupyter_client.manager import KernelManager
+except ImportError:
+    # Backward compat prior to IPython / Jupyter split
+    from IPython.kernel import KernelManager
 
 
 def remove_outputs(nb):
@@ -199,7 +212,7 @@ def process_notebook_file(fname, action='clean', output_fname=None):
     print("Performing '{}' on: {}".format(action, fname))
     orig_wd = os.getcwd()
     # XXX: Ugly hack to preserve backward compat for now
-    cmd = ('ipython nbconvert --quiet --to notebook --nbformat 3'
+    cmd = ('ipython nbconvert --to notebook --nbformat 3'
            ' --output="%s" "%s"') % (fname, fname)
     os.system(cmd)
     with io.open(fname, 'r') as f:
@@ -242,7 +255,7 @@ if __name__ == '__main__':
     for target in targets:
         if os.path.isdir(target):
             fnames = [os.path.abspath(os.path.join(target, f))
-                      for f in os.listdir(target)
+                      for f in sorted(os.listdir(target))
                       if f.endswith('.ipynb')]
         else:
             fnames = [target]

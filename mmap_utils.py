@@ -1,5 +1,5 @@
 import os
-from IPython.parallel import interactive
+from ipyparallel import interactive
 
 
 @interactive

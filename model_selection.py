@@ -6,8 +6,8 @@ Licensed: Simplified BSD
 from collections import namedtuple
 import os
 
-from IPython.parallel import interactive
-from IPython.parallel import TaskAborted
+from ipyparallel import interactive
+from ipyparallel import TaskAborted
 from scipy.stats import sem
 import numpy as np
 
@@ -203,7 +203,7 @@ class RandomizedGridSeach(object):
 
     def boxplot_parameters(self, display_train=False):
         """Plot boxplot for each parameters independently"""
-        import pylab as pl
+        import matplotlib.pyplot as pl
         results = [Evaluation(*task.get())
                    for task_group in self.task_groups
                    for task in task_group
